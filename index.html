@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="声剪 WaveSnip 是一款完全在浏览器本地运行的音频裁切与 WAV 导出工具。"
+    />
+    <meta name="theme-color" content="#13231f" />
+    <title>声剪 WaveSnip · 本地音频裁切</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%2313231f'/%3E%3Cpath d='M18 34v-8m7 16V19m7 28V14m7 28V20m7 14v-8' stroke='%23c8f36a' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">跳到剪辑区</a>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="声剪 WaveSnip 首页">
+        <span class="brand-mark" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i>
+        </span>
+        <span>
+          <strong>声剪</strong>
+          <small>WaveSnip</small>
+        </span>
+      </a>
+
+      <div class="privacy-pill">
+        <span class="privacy-dot" aria-hidden="true"></span>
+        音频不上传
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="eyebrow"><span>LOCAL AUDIO LAB</span><span>01 / 01</span></div>
+        <h1 id="hero-title">小心地剪，<br /><em>干净地留。</em></h1>
+        <p>
+          在浏览器里完成波形选取、淡入淡出与峰值归一化，直接导出
+          16-bit PCM WAV。不登录，不等待，不离开这台设备。
+        </p>
+        <div class="hero-notes" aria-label="产品特性">
+          <span>Web Audio API</span>
+          <span>纯本地处理</span>
+          <span>无第三方依赖</span>
+        </div>
+      </section>
+
+      <section id="workspace" class="workspace" aria-labelledby="workspace-title">
+        <div class="workspace-heading">
+          <div>
+            <span class="section-index">01</span>
+            <div>
+              <p class="kicker">WORKBENCH</p>
+              <h2 id="workspace-title">音频工作台</h2>
+            </div>
+          </div>
+          <button id="removeFileButton" class="text-button" type="button" hidden>
+            移除当前文件
+          </button>
+        </div>
+
+        <div id="statusMessage" class="status-message" role="status" aria-live="polite" hidden>
+          <span class="status-icon" aria-hidden="true"></span>
+          <span id="statusText"></span>
+          <button id="dismissStatusButton" type="button" aria-label="关闭提示">×</button>
+        </div>
+
+        <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-describedby="drop-hint">
+          <input id="fileInput" type="file" accept="audio/*" hidden />
+          <div class="drop-visual" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none">
+              <path d="M14 42V20c0-3.3 2.7-6 6-6h24c3.3 0 6 2.7 6 6v22c0 3.3-2.7 6-6 6H20c-3.3 0-6-2.7-6-6Z" />
+              <path d="M22 36V27m7 13V23m7 13V27m7 9v-5" />
+            </svg>
+          </div>
+          <div>
+            <p class="drop-label">将音频拖到这里</p>
+            <p id="drop-hint">或点击选择浏览器可解码的音频文件</p>
+          </div>
+          <span class="file-cta">选择文件 <b aria-hidden="true">↗</b></span>
+        </div>
+
+        <div id="loadingPanel" class="loading-panel" hidden aria-live="polite">
+          <span class="loader" aria-hidden="true"></span>
+          <div>
+            <strong>正在解码音频</strong>
+            <p>长音频可能需要几秒，处理全程在本地完成。</p>
+          </div>
+        </div>
+
+        <div id="editor" class="editor" hidden>
+          <section class="file-strip" aria-labelledby="file-name">
+            <div class="file-icon" aria-hidden="true">W</div>
+            <div class="file-primary">
+              <p class="kicker">当前文件</p>
+              <h3 id="file-name">—</h3>
+            </div>
+            <dl class="file-facts">
+              <div>
+                <dt>总时长</dt>
+                <dd id="fileDuration">—</dd>
+              </div>
+              <div>
+                <dt>采样率</dt>
+                <dd id="fileSampleRate">—</dd>
+              </div>
+              <div>
+                <dt>声道</dt>
+                <dd id="fileChannels">—</dd>
+              </div>
+              <div>
+                <dt>文件大小</dt>
+                <dd id="fileSize">—</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="wave-panel" aria-labelledby="wave-title">
+            <div class="panel-heading">
+              <div>
+                <p class="kicker">WAVEFORM</p>
+                <h3 id="wave-title">拖动波形或滑块选取</h3>
+              </div>
+              <div class="selection-badge">
+                <span>选区</span>
+                <strong id="selectionDuration">00:00.000</strong>
+              </div>
+            </div>
+
+            <div class="wave-stage" id="waveStage">
+              <canvas
+                id="waveformCanvas"
+                role="img"
+                aria-label="音频波形。可在波形上拖动选择范围。"
+              ></canvas>
+              <div class="wave-empty" id="waveEmpty">正在准备波形…</div>
+            </div>
+
+            <div class="range-wrap" aria-label="选区范围">
+              <div class="range-track" aria-hidden="true">
+                <div id="rangeFill" class="range-fill"></div>
+              </div>
+              <input id="startRange" class="range-input" type="range" min="0" max="1" step="0.001" value="0" aria-label="选区开始时间" />
+              <input id="endRange" class="range-input" type="range" min="0" max="1" step="0.001" value="1" aria-label="选区结束时间" />
+            </div>
+
+            <div class="time-editor">
+              <label>
+                <span>开始 / 秒</span>
+                <input id="startTimeInput" type="number" min="0" step="0.001" inputmode="decimal" />
+                <small id="startTimeFormatted">00:00.000</small>
+              </label>
+              <span class="time-arrow" aria-hidden="true">→</span>
+              <label>
+                <span>结束 / 秒</span>
+                <input id="endTimeInput" type="number" min="0" step="0.001" inputmode="decimal" />
+                <small id="endTimeFormatted">00:00.000</small>
+              </label>
+              <button id="selectAllButton" class="subtle-button" type="button">选择全部</button>
+            </div>
+
+            <div class="transport">
+              <button id="playButton" class="play-button" type="button">
+                <span class="play-symbol" aria-hidden="true">▶</span>
+                <span>试听选区</span>
+              </button>
+              <button id="stopButton" class="stop-button" type="button" disabled>
+                <span aria-hidden="true">■</span>
+                停止
+              </button>
+              <div class="playback-time" aria-live="off">
+                <span id="playbackPosition">00:00.000</span>
+                <span>/</span>
+                <span id="playbackEnd">00:00.000</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-panel" aria-labelledby="settings-title">
+            <div class="panel-heading compact">
+              <div>
+                <p class="kicker">PROCESS</p>
+                <h3 id="settings-title">导出处理</h3>
+              </div>
+              <span class="format-chip">16-BIT PCM · WAV</span>
+            </div>
+
+            <div class="setting-grid">
+              <label class="setting-card volume-card">
+                <span class="setting-title">
+                  <b>音量</b>
+                  <output id="volumeOutput" for="volumeInput">100%</output>
+                </span>
+                <input id="volumeInput" type="range" min="0" max="100" step="1" value="100" />
+                <small>仅衰减音量，避免额外削波</small>
+              </label>
+
+              <label class="setting-card">
+                <span class="setting-title"><b>淡入</b><span>秒</span></span>
+                <input id="fadeInInput" class="number-field" type="number" min="0" step="0.1" value="0" inputmode="decimal" />
+                <small>从静音平滑进入</small>
+              </label>
+
+              <label class="setting-card">
+                <span class="setting-title"><b>淡出</b><span>秒</span></span>
+                <input id="fadeOutInput" class="number-field" type="number" min="0" step="0.1" value="0" inputmode="decimal" />
+                <small>平滑收束至静音</small>
+              </label>
+
+              <label class="setting-card switch-card" for="normalizeInput">
+                <span>
+                  <b>峰值归一化</b>
+                  <small>将峰值提升至 -0.18 dBFS</small>
+                </span>
+                <span class="switch">
+                  <input id="normalizeInput" type="checkbox" />
+                  <i aria-hidden="true"></i>
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <section class="export-panel" aria-labelledby="export-title">
+            <div>
+              <p class="kicker">EXPORT</p>
+              <h3 id="export-title">准备好了吗？</h3>
+              <p>导出时将在本地生成 WAV，原文件不会被修改。</p>
+            </div>
+            <button id="exportButton" class="export-button" type="button">
+              <span id="exportButtonLabel">导出选区 WAV</span>
+              <span aria-hidden="true">↓</span>
+            </button>
+            <div id="exportProgressWrap" class="export-progress-wrap" hidden>
+              <div class="export-progress-label">
+                <span id="exportProgressText">正在编码…</span>
+                <strong id="exportProgressValue">0%</strong>
+              </div>
+              <progress id="exportProgress" max="100" value="0">0%</progress>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="history-section" aria-labelledby="history-title">
+        <div class="section-heading">
+          <div class="section-heading-title">
+            <span class="section-index">02</span>
+            <div>
+              <p class="kicker">LOCAL LOG</p>
+              <h2 id="history-title">导出记录</h2>
+            </div>
+          </div>
+          <button id="clearHistoryButton" class="text-button" type="button" hidden>清空记录</button>
+        </div>
+        <p class="history-note">仅在此浏览器保存文件名、时间与处理参数，不保存音频。</p>
+        <div id="historyEmpty" class="history-empty">
+          <span aria-hidden="true">00</span>
+          <div>
+            <strong>还没有导出记录</strong>
+            <p>完成第一次导出后，参数会出现在这里。</p>
+          </div>
+        </div>
+        <ol id="historyList" class="history-list" hidden></ol>
+      </section>
+
+      <section class="principles" aria-labelledby="principles-title">
+        <div>
+          <p class="kicker">BUILT-IN PROMISE</p>
+          <h2 id="principles-title">你的声音，<br />只属于你。</h2>
+        </div>
+        <ul>
+          <li><span>01</span><strong>无网络也能剪</strong><p>页面载入后，解码、试听和导出不需要服务器。</p></li>
+          <li><span>02</span><strong>不改动源文件</strong><p>所有选区与效果都是非破坏性的，只作用于新导出的 WAV。</p></li>
+          <li><span>03</span><strong>打开即用</strong><p>没有账号、会员或遥测脚本，也不依赖任何第三方库。</p></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <span>声剪 WaveSnip</span>
+      <span>本地音频工作台 · 2026</span>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
